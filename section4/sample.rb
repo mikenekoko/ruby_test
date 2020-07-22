@@ -175,3 +175,84 @@ end
 p fruits
 
 p fruits.each
+
+a = []
+10.upto(14) { |n| a << n }
+p a
+
+a = []
+14.downto(10) { |n| a << n }
+p a
+
+a = []
+1.step(10, 2) { |n| a << n }
+p a
+
+a = []
+10.step(1, -2) { |n| a << n }
+p a
+
+a = []
+while a.size < 5
+  a << 1
+end
+p a
+
+a = []
+while a.size < 5 do a << 1 end
+p a
+
+a = []
+a << 1 while a.size < 5
+p a
+
+a = []
+
+# これは入らない
+while false
+  a << 1
+end
+
+# 1回は絶対入る
+begin
+  a << 1
+end while false
+
+numbers = [1,2,3,4]
+sum = 0
+for n in numbers
+  sum += n
+end
+
+# 気持ち悪いけどdoを入れて1行で書ける
+sum = 0
+for n in numbers
+  sum += n
+end
+
+p sum
+
+fruits = ['apple', 'melon', 'orange']
+numbers = [1,2,3]
+catch :done do
+  fruits.shuffle.each do |fruit|
+    numbers.shuffle.each do |n|
+      puts "#{fruit}, #{n}"
+      if fruit == 'orange' && n == 3
+        throw :done
+      end
+    end
+  end
+end
+
+fruits = ['apple', 'melon', 'orange']
+fruits.each do |fruit|
+  p "#{fruit}はお好きですか？"
+
+  # sample は配列からランダムに1要素取得するメソッド
+  answer = ['yes', 'no'].sample
+  p answer
+
+  # yesと答えなければもう一度聞きだす
+  redo unless answer == 'yes'
+end

@@ -725,3 +725,271 @@ fruits.map.with_index(1) { |fruits, i| p "#{i}: #{fruits}"}
 -> "3: orange"
 ```
 
+## ブロックローカル変数
+* `;` で区切ったものはブロックローカル変数となり、ブロック内でのみ有効になる
+* 利点として、ブロック内と外で同じメソッドを使いたい場合などに限定されるため本来使うべきではない。
+* これを使うべき名時点で、変数名などを見直したりで大体解決できるはず
+
+```ruby
+sum = 0
+# sum はブロック内でのみ使える変数
+a.each do |n; sum|
+  sum += n
+end
+# ブロック外のsumとは競合しない
+```
+
+## ブロックの利点は繰り返し処理だけではない
+* `File.open` は外部ファイルを開くメソッドで、本来これを使用したらcloseする必要がある。これはperlとかも同じだよね
+* が、なんとブロック内でfile処理を書けばブロックが閉じたときに自動的にclose処理を行ってくれるのである！
+* これは便利だし、閉じる処理書かなくていいのは覚えていた方がいいね。明示的に書く人もいそうだけど。
+
+```ruby
+File.open("../filepath/txt.txt", "w") do |file|
+  file.puts("1行目")
+end
+```
+
+## do..end と {} の結合度の違い
+* 基本的には同じだが、結合度の関係で処理に違いが出ることがある
+* `{}` の方が結合度が高い
+
+```ruby
+a = [1,2,3]
+
+# ないものを消すとnilが返ってくるよね
+a.delete(100)
+-> nil
+
+# ブロックを渡すと、nilの時の戻り値になるよ
+a.delete(100) do
+  'NG'
+end
+-> 'NG'
+
+# do..end だとこう書けるけど
+a.delete(100) do
+  'NG'
+end
+
+# これを {} で書こうとするとエラーになる！
+a.delete 100 { 'NG' }
+
+# 回避方法
+a.delete(100) { 'NG' }
+```
+
+* {} の優先度高いせいで、 `100 { 'NG' }` と解釈される。数値にブロック引数は渡せないのでエラーになる。
+* delete(100) とすることで、優先的に解釈されるため回避方法としてカッコでくくるようになる。
+
+## メソッドチェーン
+* do..end や {} はそのまま繋げることができる
+* {} の方が読みやすいっていう意見が多いらしい。実際自分もそう思う
+
+```ruby
+names = [a, b c]
+
+names.map { |name| "#{name}さん" }.join('と')
+names.map do |name|
+  "#{name}さん"
+end.join('と')
+```
+
+# 様々な繰り返し処理
+## times
+* 配列を使わずに、単純にn回処理を繰り返したいという用途に使う
+
+```ruby
+sum = 0
+
+5.times{ |n| sum += n }
+```
+
+## upto / downto
+* Integerクラスの一つ
+* `upto` : n から m まで数値を1つずつ増やしながら何かしたいと気に使う
+* `downto` : 減らしたい時に使う
+
+```ruby
+a = []
+10.upto(14) { |n| a << n }
+-> [10, 11, 12, 13, 14]
+
+14.downto(10) { |n| a << n }
+-> [14, 13, 12, 11, 10]
+```
+
+## step
+* Integerクラスの一つ
+* `step` : nからmまで数値を1ずつ増やしながら何か処理をしたい場合に使う
+
+```ruby
+# 第一引数が、上限値 ループの幅。 1 ~ 10までって感じになる
+# 第二引数が、間隔幅
+a = []
+1.step(10, 2) { |n| a << n }
+-> [1, 3, 5, 7, 9]
+
+a = []
+10.step(1, -2) { |n| a << n }
+-> [10, 8, 6, 4, 2]
+```
+
+## while / until
+* `while` : 条件が真である場合、ループし続ける
+* `until` : 条件が偽である場合、ループし続ける。 while の逆なだけ。
+
+```ruby
+# 配列の要素数が5つになるまでループさせる
+a = []
+while a.size < 5
+  a << 1
+end
+-> [1, 1, 1, 1, 1]
+
+# doを挟むことで1行で書ける
+a = []
+while a.size < 5 do a << 1 end
+
+# 後置whileでもっときれいに書ける
+a = []
+a << 1 while a.size < 5
+```
+
+* `begin...end`: どんな条件でも最低1回は実行したいという場合に使う
+* do ~ while みたいなイメージかな。
+* めちゃめちゃ違和感がすごい書き方。後置 while なのに begin句内は1回入るみたいな感じかな？
+
+```ruby
+a = []
+
+# これは入らない
+while false
+  a << 1
+end
+
+# 1回は絶対入る
+begin
+  a << 1
+end while false
+```
+
+## for文
+* 書き方が違うだけでほぼeachと同じ
+* なんならeachがデファクトスタンダードなためあまり使われない
+* eachとの違いは、ブロックではないため中で宣言した変数を外で使えたりする
+
+```ruby
+numbers = [1,2,3,4]
+sum = 0
+for n in numbers
+  sum += n
+end
+
+# 気持ち悪いけどdoを入れて1行で書ける
+sum = 0
+for n in numbers
+  sum += n
+end
+```
+
+## loop
+* 無限ループを作る。 `while true` みたいなイメージでOK
+* 抜け出すには `break` を使う
+* loopメソッドはブロックなため、外から変数を呼ぶことはできない。whileはブロックではないため呼べるのでここの違いは覚えておこう
+* このへんも他の言語とだいたい同じ
+
+```ruby
+loop do
+  # 無限ルーぷ
+  break if ~~~
+end
+```
+
+## Enumerableモジュール
+* 繰り返し処理に関連するメソッドは、Enumerableモジュールに定義されていることが多い
+* 戻り値がEnumeratorクラスのものが多いので、そのまま map などが呼べる
+* 配列や範囲オブジェクトで使えるメソッドを調べる場合は、ArrayクラスやRangeクラスだけでなくEnumerableクラスも調べる必要がある
+* ScalaのSeqみたいなもんかな
+
+# 繰り返し処理用の制御構文
+## break
+* 他の言語と同じで、ループを脱出する
+* 繰り返しが入れ子になっている場合、内側の処理だけ脱出する点に注意
+* これは他の言語と同じ
+
+## throwとcatchを使った大域脱出
+* 名前的に例外処理っぽいが関係ない。 rubyだと raise と rescure が例外処理になる
+* kernelモジュールの一つ
+
+```ruby
+# `:done` というタグを catch で定義し、 throw でそこに飛ばす
+fruits = ['apple', 'melon', 'orange']
+numbers = [1,2,3]
+catch :done do
+  fruits.shuffle.each do |fruit|
+    numbers.shuffle.each do |n|
+      puts "#{fruit}, #{n}"
+      if fruit == 'orange' && n == 3
+        throw :done
+      end
+    end
+  end
+end
+
+apple, 3
+apple, 2
+apple, 1
+melon, 2
+melon, 3
+melon, 1
+orange, 3
+
+# throw ~ catch はループ関係なく使える
+# throw メソッドの第二引数が返り値になる
+ret =
+  catch :done do
+    throw :done, 123
+  end
+end
+
+-> ret = 123 
+```
+
+## breakとreturnの違いは？
+* `break` : 繰り返しからの脱出
+* `return` : 繰り返しのみならず、メソッドからの脱出。ただのブロックループとかから呼ぶとエラーになる。
+
+## next
+* 繰り返し処理を途中で中断し、次のループに飛ばす
+* ループが入れ子の場合、内側のループのみ対応になる。ここはbreakと同じ
+
+## redo
+* 繰り返し処理をやり直したい場合に使う
+* ループを完全に最初からやり直すのではなく、そのループを最初からやり直すだけ。
+  * 1 ~ 5 のループで、 3回目でredo をすると 3回目が再開されるのみ
+* 使いどころが難しそうだし、こうしたループを繰り返す系は怖いから注意
+
+```ruby
+fruits = ['apple', 'melon', 'orange']
+fruits.each do |fruit|
+  p "#{fruit}はお好きですか？"
+
+  # sample は配列からランダムに1要素取得するメソッド
+  answer = ['yes', 'no'].sample
+  p answer
+
+  # yesと答えなければもう一度聞きだす
+  redo unless answer == 'yes'
+end
+
+"appleはお好きですか？"
+"yes"
+"melonはお好きですか？"
+"no"
+"melonはお好きですか？"
+"yes"
+"orangeはお好きですか？"
+"yes"
+```
+
