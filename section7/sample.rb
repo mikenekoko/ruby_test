@@ -194,3 +194,173 @@ class Bar < Foo
 end
 
 p Bar.hello
+
+class User5
+  class << self
+    private
+
+    def hello
+      p 'hello!!'
+    end
+  end
+end
+
+# User5.hello
+
+class User6
+  def self.hello
+    p 'hello!!'
+  end
+
+  # 後からhelloをprivateにする
+  private_class_method :hello
+end
+
+# User6.hello
+
+class User7
+  # weight は恥ずかしいから公開したくない！
+  attr_reader :name
+
+  def initialize(name, weight)
+    @name = name
+    @weight = weight
+  end
+
+  # ユーザ同士の体重を比較する
+  def heavier_than?(other_user)
+    other_user.weight < @weight
+  end
+
+  # protectedメソッドなので同じクラスかサブクラスであればレシーバ付きで呼び出せる
+  
+  protected
+
+  def weight
+    @weight
+  end
+end
+
+mike = User7.new('mike', 50)
+neko = User7.new('neko', 70)
+p mike.heavier_than?(neko)
+# p mike.weight
+
+class Mike
+  NEKO = 'cat'
+end
+
+p Mike::NEKO
+
+class Product4
+  # クラスインスタンス変数
+  @name = 'product'
+
+  def self.name
+    # これはクラスインスタンス変数をよんでる
+    @name
+  end
+
+  def initialize(name)
+    # これは前々から説明してたインスタンス変数
+    @name
+  end
+
+  def name
+    # これも同じくインスタンス変数
+    @name
+  end
+end
+
+p Product4.name
+
+class Product4
+  # @@ に変えただけ！
+  @@name = 'product'
+
+  def self.name
+    # 呼び出しはクラスメソッドだろうとインスタンスメソッドだろうと@@
+    @@name
+  end
+
+  def initialize(name)
+    @@name = name
+  end
+
+  def name
+    @@name
+  end
+end
+
+class DVD4 < Product4
+  @@name = 'DVD'
+
+  def initialize(name)
+    @@name = name
+  end
+
+  def self.name
+    @@name
+  end
+
+  def upcase_name
+    @@name.upcase
+  end
+end
+
+# DVD4を定義した瞬間に、Product4の内容もDVDに変わる！！
+# 同じものを参照している
+p Product4.name
+p DVD4.name
+
+# 逆も同じ
+product = Product4.new('mike')
+p Product4.name
+p DVD4.name
+
+class User8
+  def hello
+    p 'Hello!'
+  end
+
+  alias greething hello
+end
+
+user = User8.new()
+user.greething
+
+class Product5
+  def ==(other)
+    if other.is_a?(Product)
+      code == other.code
+    else
+      false
+    end
+  end
+end
+
+a = 'abc'
+b = 'abc'
+p a.equal?(b)
+
+c = a
+p a.equal?(c)
+
+p 1 == 1.0
+
+p 1.eql?(1.0)
+
+class String
+  def shuffle
+    chars.shuffle.join
+  end
+end
+
+s = 'Hello, I am Alice.'
+p s.shuffle
+
+s = 'mikeneko'
+
+# Stringクラスはsplirtメソッドを持つか？
+p s.respond_to?(:split)
+p s.respond_to?(:name)

@@ -472,3 +472,493 @@ end
 p Bar.hello
 -> "Hello"
 ```
+
+# メソッドの公開レベル
+## public
+* クラスの外部からでも自由に呼び出せるメソッド
+* `public` という記述を書き、その下に属するメソッドが全てpublicメソッドになる。
+* initialize 以外はデフォルトでこれ。呼び出せる理由はこれになってるから
+
+## private
+* クラス内部からでのみ呼び出せるメソッド
+* `private` という記述を書き、その下に属するメソッドが全てprivateメソッドになる。
+* 正確には、レシーバを指定して呼び出すことができないメソッド
+  * レシーバは、 `user.hello` だとしたら user が対象になる。
+  * レシーバを指定できないため、privateメソッドを `self.hello` と呼ぶとエラーになる。 `hello` と直で呼べばOK
+* rubyでは、privateメソッドは `サブクラスでも呼び出せる`
+  * オーバーライドも可能。ここはrubyの特徴的な点
+* `private :メソッド名` で個別にprivateメソッドを指定する事も可 
+
+```ruby
+class User
+  def hoge
+    p "hoge"
+  end
+# これ以下のメソッドは全部プライベートメソッド
+  private
+
+# これはプライベート
+  def hello
+    p "hello"
+  end
+
+# あとから hoge をprivateにする
+  private :hoge
+end
+```
+
+* クラスメソッドは、private宣言の下に書いただけではプライベートメソッドにならない。
+* `class << self` 構文を使う
+* または、 `private_class_method :メソッド名` でクラスメソッドの定義後に公開レベルを変える
+
+```ruby
+class User5
+  class << self
+    private
+
+    def hello
+      p 'hello!!'
+    end
+  end
+end
+
+User5.hello
+-> privateのため呼び出せない
+
+class User6
+  def hello
+    p 'hello!!'
+  end
+
+  # 後からhelloをprivateにする
+  private_class_method :hello
+end
+
+User6.hello
+-> 同じく
+```
+
+## protected
+* そのメソッドを定義したクラス自身と、サブクラスのインスタンスメソッドから `レシーバ付きで` 呼び出せる
+* 外部には後悔したくないが、同じクラスやサブクラスの中であればレシーバ付きで呼び出せるようにしたい！という用途で使う
+* `protected` という記述を書き、その下に属するメソッドが全てprotectedメソッドになる。
+* 単純なゲッターであれば、 `protected :サブクラス名`  でもいい
+
+```ruby
+class User7
+  # weight は恥ずかしいから公開したくない！
+  attr_reader :name
+
+  def initialize(name, weight)
+    @name = name
+    @weight = weight
+  end
+
+  # ユーザ同士の体重を比較する
+  def heavier_than?(other_user)
+    other_user.weight < @weight
+  end
+
+  # protectedメソッドなので同じクラスかサブクラスであればレシーバ付きで呼び出せる
+  
+  protected
+
+  def weight
+    @weight
+  end
+
+  # protected :weight でも同じ
+end
+
+mike = User7.new('mike', 50)
+neko = User7.new('neko', 70)
+p mike.heavier_than?(neko)
+-> 呼び出せる！
+p mike.weight
+-> 直接はエラーになる
+-> sample.rb:247:in `<main>': protected method `weight' called for #<User7:0x00007fffca56d2f0 @name="mike", @weight=50> (NoMethodError)
+```
+
+# 定数についてもっと詳しく
+* 定数は `クラスの外部から直接参照可能！！`
+* 呼び出し方は `クラス名::定数名`
+* クラス外部から呼び出されたくない場合は `private_constant :定数名` で指定
+* 定数はメソッド内部で作成することはできない。
+
+```ruby
+class Mike
+  NEKO = 'cat'
+end
+
+p Mike::NEKO
+```
+
+## 再代入
+* 定数は `再代入が可能。` 警告は出るけど。
+* 再代入を防ぐには `freeze` (凍結) を使う
+
+```ruby
+class Hoge
+  MIKE = 'neko'
+  MIKE = 'mikeneko'
+end
+
+Hoge::MIKE = 'noraneko'
+
+# クラス丸ごと凍結
+Hoge.freeze
+class Hoge
+  MIKE = 'neko'
+  # 定数定義後に書く
+  freeze
+  MIKE = 'mikeneko'
+  -> エラー
+end
+
+# 定数単体で凍結
+HOGE = 'hoge'.freeze
+```
+
+* `upcase!` みたいなミュータブルメソッドを呼ぶとそのまま定数が破壊変更されるので気を付ける事
+* 各種freezeするしかないが、どこまでやるかは要件に応じて検討するように！
+  * これ決めんのむずそうだな
+
+```ruby
+# 無かったらHOGEの定数を使うが、破壊的変更をしているため定数の中身が消える
+# こういうパターンめっちゃ気づきづらいから気をつけてな
+def hoge(names = HOGE)
+  name.delete('foo')
+end
+
+# これとかも安心そうだけど、配列やハッシュそのものは凍結したけど各要素は凍結していないので変更できてしまう
+class Fuga 
+  HOGE = ['ho', 'ge']
+end
+
+Fuga::HOGE[0].upcase!
+
+# 各要素全部freezeするしかない。mapとか使うとスマートに書ける
+HOGE = ['ho', 'ge'].map(&:.freeze).freeze
+```
+
+* true/false や 数値みたいなものはイミュータブルなため、freezeする必要がない事を覚えておこう！
+
+# 様々な種類の変数
+* これから紹介するのはあんまり使用頻度が高くない奴らだよ
+* チラッと覚えておいて、使うタイミングがあったら読み直すくらいでOK。引き出し増やしとこう
+
+## クラスインスタンス変数
+* クラスに設定されるインスタンス変数。クラスメソッドからインスタンス変数を呼ぶとこっちが呼ばれる。
+* インスタンス変数は継承関係に応じて親と子で内容が共有されるが、クラスインスタンス変数は親と子でそれぞれ個別である
+
+```ruby
+class Product4
+  # クラスインスタンス変数
+  @name = 'product'
+
+  def self.name
+    # これはクラスインスタンス変数をよんでる
+    @name
+  end
+
+  def initialize(name)
+    # これは前々から説明してたインスタンス変数
+    @name
+  end
+
+  def name
+    # これも同じくインスタンス変数
+    @name
+  end
+end
+
+p Product4.name
+-> "product"
+```
+
+## クラス変数
+* `@@` でクラス直下に定義した変数をクラス変数という
+* 全く同じもののため、継承した親や子で変えたりすると継承関係にあるものも変わる。
+
+```ruby
+class Product4
+  # @@ に変えただけ！
+  @@name = 'product'
+
+  def self.name
+    # 呼び出しはクラスメソッドだろうとインスタンスメソッドだろうと@@
+    @@name
+  end
+
+  def initialize(name)
+    @@name = name
+  end
+
+  def name
+    @@name
+  end
+end
+
+class DVD4 < Product4
+  @@name = 'DVD'
+
+  def initialize(name)
+    @@name = name
+  end
+
+  def self.name
+    @@name
+  end
+
+  def upcase_name
+    @@name.upcase
+  end
+end
+
+# DVD4を定義した瞬間に、Product4の内容もDVDに変わる！！
+# 同じものを参照している
+p Product4.name
+-> DVD
+p DVD4.name
+-> DVD
+
+# 逆も同じ
+product = Product4.new('mike')
+p Product4.name
+-> mike
+p DVD4.name
+-> mike
+```
+
+* クラス内定数みたいなイメージでいいんかな？
+* ライブラリ(gem)の設定情報(config)を格納する場合などに使われるケースがある
+
+## グローバル変数
+* `$` で定義すると、グローバル変数になりクラス内部外部問わず呼び出せる
+* perlの @とか$ と全然意味違うから違和感すごい
+* あまり使うべきではないし、バグのもとかつ可読性悪いのでできる限り使わないのを非推奨
+
+```ruby
+$hoge = 'hoge'
+
+class Hoge
+  def initialize(name)
+  # そのまま指定とか代入できるよ
+    $hoge = name
+  end
+end
+```
+
+# クラス定義やRubyの言語使用に関する高度な話題
+## エイリアスメソッドの定義
+* 例えば、 `size` は `length` のエイリアスメソッド。この size を自作できる
+* `alias 新しい名前 元の名前` で定義。クラス内に書く。
+
+```ruby
+class User8
+  def hello
+    p 'Hello!'
+  end
+
+  alias greething hello
+end
+
+user = User8.new()
+user.greething
+-> Hello!
+```
+
+## メソッドの削除
+* `undef 削除するメソッド名` で削除できる。クラス内に書く。
+
+## ネストしたクラス定義
+* クラスはネストさせることが可能
+* `クラス名1::クラス名2` で呼べる
+* クラス名の予期せぬ衝突を防ぐ、名前空間を作る場合によく使われる
+
+```ruby
+class クラス名1
+  class クラス名2
+  end
+end
+```
+
+## 演算子の挙動を独自に再定義する
+* 前やったように、 `name=(value)` とかで代入処理をオーバーライドできる
+* そんな感じで、他にも色々ある。 `| ^ & <= => ...`
+
+```ruby
+class Product5
+  def ==(other)
+    if other.is_a?(Product)
+      code == other.code
+    else
+      false
+    end
+  end
+end
+
+a = Product5.new...
+b = Product5.new...
+
+# これはオーバーライドした方のメソッドを呼んでる
+a == b
+
+# メソッドなのでこんな感じでも呼べる。流石に使われない。
+a.==(b)
+```
+
+## 等値を判断するメソッドや演算子の挙動を学ぶ
+### equal?
+* object_id が等しい場合にtrueを返す。完全に同じインスタンスかどうかを判断する場合に使われる
+* このメソッドを再定義するとプログラムに悪影響を及ぼすのでNG
+
+```ruby
+a = 'abc'
+b = 'abc'
+p a.equal?(b)
+
+c = a
+p a.equal?(c)
+```
+
+### ==
+* オブジェクトの内容が等しいかどうかを判断する
+* たとえば、 `1 == 1.0` は trueになる
+* さっきやったみたいに再定義してもOK
+
+### eql?
+* ハッシュのキーとして、2つのオブジェクトが等しいかどうかを判断する
+* `1 == 1.0` はtrueであったとしても、 キーとして見たときはそれは異なるキーとして扱われる。
+* そういった判断ケースで使われる
+
+```ruby
+p 1.eql?(1.0)
+```
+
+* 再定義も可能だが、 `a.eql?(b)` が真ならば、 `a.hash == b.hash` が成り立つようにhashメソッドも再定義する必要がある
+
+### ===
+* case文のwhen句で使われる。デフォルトだと省略されている。
+  * `when節のオブジェクト === case節のオブジェクト`
+* javascriptだと正確比較なので違和感
+
+```ruby
+text = 'mike'
+case text
+# 内部的には、 'mi' === text をしている
+when 'mi'
+when 'mike'
+end
+```
+
+* 型での比較もできるのでこんなこともできる
+* 独自に定義したオブジェクトだと、型比較できないのでその場合は === を再定義すること
+
+```ruby
+text = ['mike', 'neko']
+case text
+when String
+when Array
+end
+```
+
+## オープンクラスとモンキーパッチ
+* Rubyのクラスは変更OKのオープンなので、 `オープンクラス` と呼ばれたりする
+* 同じクラスを定義した場合、前の部分を引き継ぐという特性があるため簡単にメソッドを追加したりできる
+* Rails とかも、デフォにないrubyのメソッドをオープンクラスを使ってはやしまくってたりする
+
+```ruby
+class String
+# shuffle という独自メソッドをはやす
+  def shuffle
+    chars.shuffle.join
+  end
+end
+
+s = 'Hello, I am Alice.'
+p s.shuffle
+-> "ac ele, IolAHml .i"
+```
+
+* 既存のメソッドの挙動を、自分が期待する挙動に変更することを `モンキーパッチ` という
+* 直接上書きしたり、 `alias` を使って既存のメソッドをエイリアスメソッドとして残したりとか色々できる。
+* モンキーパッチの変更スコープは `グローバル` なため注意すること。
+
+こんな感じの弊害も起きるので気を付ける事
+* デフォのメソッドを上書きした結果、全体に影響が出た
+* 標準クラスに独自メソッドを追加したが、自分以外使い方がわからず負債となる
+* 外部ライブラリのコードにモンキーパッチを当てて使っていたが、バージョンをあげた際に整合性が取れなくなりエラーになる
+
+そのため、乱用せずモンキーパッチなどを使わずに要件が満たせないか最大限考える
+
+## 特異メソッド
+* オブジェクト単位で挙動を変えることもでき、 `得意メソッド` と呼ぶ。
+* `オブジェクト.メソッド名` で定義できる。そのオブジェクトしか影響を受けない。
+
+```ruby
+alice = 'Hello, I am Alice.'
+
+def alice.shuffle
+  chars.shuffle.join
+end
+
+# こうでもかける
+class << alice
+  def shuffle
+    chars.shuffle.join
+  end
+end
+
+s = 'Hello, I am Alice.'
+p s.shuffle
+-> "ac ele, IolAHml .i"
+```
+
+## クラスメソッドも特異メソッド！
+* 書き方が似ているように、クラスメソッドも特異メソッドである。
+* `self` というオブジェクトに専用のメソッドをはやしているだけ。
+
+```ruby
+# こう書けばクラスメソッドが特異メソッドであることがわかりやすい
+class User
+end
+
+def User.hello
+  "hello!"
+end
+```
+
+## ダックタイピング
+* オブジェクトのクラスがなんであろうと、そのメソッドが呼び出されば良しとする考え
+* 「アヒルのように歩き、アヒルのように鳴くならばアヒルである」という言葉に由来するプログラミング言語 -> 初耳
+* 動的型付け言語の非常に強力な機能なため覚えよう！！
+
+```ruby
+# userからnameが呼べたらOKなメソッド
+# そのuserがどんな実装であろうと、呼べれば気にしない
+def A(user)
+  user.name
+end
+```
+
+* 親クラスに、子クラスで実装される前提のメソッドを使って定義とかもできる
+* 親クラスからそれを呼ぶとエラーにはなる。わかりづらいので、親でそのメソッドを読んだ時にUsageみたいなのを raise で返すのはあり
+
+# コラム
+## respond_to?
+* メソッドの有無を調べる。ダックタイピングなどの確認分岐相性がいい
+
+```ruby
+s = 'mikeneko'
+
+# Stringクラスはsplirtメソッドを持つか？
+p s.respond_to?(:split)
+-> true
+p s.respond_to?(:name)
+-> false
+```
+
+## Rubyでメソッドのオーバーロード？（多重定義）
+* 他言語では、引数の型によって動作を変える定義ができる
+* rubyでは、文字列や数値を変換するメソッドが柔軟に備わっているためこの考え方はない。デフォルト引数などもあるため。
