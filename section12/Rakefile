@@ -1,0 +1,6 @@
+desc "テスト用のタスクです"
+namespace :my_tasks do
+  task :hello_world do
+    puts 'Hello, world!'
+  end
+end
